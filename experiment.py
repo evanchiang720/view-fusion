@@ -633,8 +633,9 @@ class Experiment:
                 # scale_each=True,
                 pad_value=0.9,
             )
-            # view_weights = rearrange(view_weights, "c h w -> h w c")
-            frames.append((view_weights.cpu() * 255).to(torch.uint8))
+            # Rearrange from (C, H, W) to (H, W, C) for imageio/Pillow
+            view_weights = rearrange(view_weights, "c h w -> h w c")
+            frames.append((view_weights.cpu().numpy() * 255).clip(0, 255).astype(np.uint8))
 
         if self.wandb_enabled:
             self.log_dict[f"weights_animated"] = wandb.Video(
