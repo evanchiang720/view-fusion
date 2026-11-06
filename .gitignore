@@ -2,10 +2,9 @@
 *.zip
 *.pt
 *.ckpt
-logs/
+logs/pretrained/*.pt
 data/nmr/
 __pycache__/
 *.log
-results/
 vf_env/
 .DS_Store
