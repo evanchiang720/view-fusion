@@ -7,8 +7,8 @@ Features:
   1. Safe, robust multi-object loader supporting index-based selection.
   2. Persistent activation patching across candidate U-Net components.
   3. Simultaneous export of:
-     - Quantitative Causal Attribution Heatmap (real_causal_heatmap.png)
-     - Qualitative Visual Comparison Grid (causal_visual_grid.png)
+     - Quantitative Causal Attribution Heatmap (real_causal_heatmap_{tag}.png)
+     - Qualitative Visual Comparison Grid (causal_visual_grid_{tag}.png)
 
 Authors: ECE 285 Course Project Team
 """
@@ -136,29 +136,24 @@ def find_candidate_components(model: nn.Module) -> Dict[str, nn.Module]:
 # Part 3: Robust Multi-Object Dataset Loader
 # ============================================================================
 
-def find_shard_path() -> str:
-    possible_paths = [
-        "data/nmr/NMR_sharded_100_4/NMR-test-00.tar",
-        "data/nmr/NMR_sharded_100_4/NMR-test-02.tar",
-        "/home/chc302/public/users/chc302/NMR_sharded_100_4/NMR-test-00.tar",
-        "/home/chc302/public/users/chc302/shards/NMR-test-00.tar"
-    ]
-    for p in possible_paths:
-        if os.path.exists(p):
-            return p
-    raise FileNotFoundError("Could not find any NMR test shard (.tar).")
+def find_shard_path(shard_name: str = "NMR-test-00.tar") -> str:
+    path = os.path.join("data/nmr/NMR_sharded_100_4", shard_name)
+    if os.path.exists(path):
+        return path
+    return os.path.join("/home/chc302/public/users/chc302/NMR_sharded_100_4", shard_name)
 
 
 def load_real_nmr_sample(
     device: torch.device,
-    object_index: int = 0
+    object_index: int = 0, 
+    shard_name: str = "NMR-test-00.tar"
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Extracts multi-view images for a specific 3D CAD object using object_index.
     Each object in NMR ShapeNet has 24 views. Skipping (object_index * 24)
     allows cleanly selecting different objects (e.g. object 0, object 1, object 2).
     """
-    shard_path = find_shard_path()
+    shard_path = find_shard_path(shard_name=shard_name)
     print(f"[*] Loading object index [{object_index}] from shard: {shard_path}")
 
     transform = transforms.Compose([
@@ -243,7 +238,7 @@ def plot_causal_heatmap(
     component_names: List[str],
     timesteps: List[int],
     title: str = "ViewFusion Causal Attribution Heatmap (Target-View Consistency)",
-    save_path: str = "results/real_causal_heatmap.png"
+    save_path: str = "results/real_causal_heatmap_sofa_0.png"
 ):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     fig_height = max(8, len(component_names) * 0.35)
@@ -284,7 +279,7 @@ def plot_causal_image_grid(
     corrupted_img: torch.Tensor,
     selected_components: List[str],
     timesteps: List[int],
-    save_path: str = "results/causal_visual_grid.png"
+    save_path: str = "results/causal_visual_grid_{tag}.png"
 ):
     """
     Renders a qualitative comparison table:
@@ -331,7 +326,7 @@ def plot_causal_image_grid(
     plt.tight_layout()
     plt.savefig(save_path, dpi=300)
     plt.close()
-    print(f"[🎉] Visual qualitative comparison table exported to: {save_path}")
+    print(f" Visual qualitative comparison table exported to: {save_path}")
 
 
 # ============================================================================
@@ -361,7 +356,7 @@ def load_viewfusion_model(device: torch.device) -> ViewFusion:
     return model
 
 
-def run_full_causal_sweep(object_index: int = 0):
+def run_full_causal_sweep(object_index: int = 0, shard_name="NMR-test-0.tar", tag="sofa0"):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[*] Starting Real Causal Sweep on: {device}")
 
@@ -378,7 +373,7 @@ def run_full_causal_sweep(object_index: int = 0):
     total_diffusion_steps = 1000
 
     # 1. Load multi-view sample (change object_index to test different objects)
-    y_cond, view_count, clean_angle = load_real_nmr_sample(device, object_index=object_index)
+    y_cond, view_count, clean_angle = load_real_nmr_sample(device, object_index=object_index, shard_name=shard_name)
     corrupted_angle = corrupt_target_pose(clean_angle)
 
     print(f"[*] Real Sample Loaded | Clean target: {clean_angle.item():.3f} rad | Corrupted target: {corrupted_angle.item():.3f} rad")
@@ -441,7 +436,7 @@ def run_full_causal_sweep(object_index: int = 0):
     hook_manager.remove_all()
 
     # Step 4: Export Heatmap
-    heatmap_path = "results/real_causal_heatmap.png"
+    heatmap_path = "results/real_causal_heatmap_sofa0.png"
     plot_causal_heatmap(
         heatmap_matrix,
         comp_names,
@@ -467,7 +462,7 @@ def run_full_causal_sweep(object_index: int = 0):
         print(f"    Rank {rank} (Top-{rank}): {comp_names[idx]} | Peak IE_c = {peak_effects[idx]:.4f}")
     print(f"    Negative Control (Bottom-1): {comp_names[bottom_idx]} | Peak IE_c = {peak_effects[bottom_idx]:.4f}\n")
 
-    grid_path = "results/causal_visual_grid.png"
+    grid_path = "results/causal_visual_grid_{tag}.png"
     plot_causal_image_grid(
         saved_images=saved_visuals,
         clean_img=clean_out[0].detach().cpu(),
@@ -485,5 +480,12 @@ def run_full_causal_sweep(object_index: int = 0):
 
 
 if __name__ == "__main__":
+    """
+    NMR-test-00.tar = {0~633: sofa, 634~1442: airplane, 1443~1905: lamp, 1906~2115: telephone, 2116~2186: vessel/boat}
+    NMR-test-01.tar = {0~315: vessel/boat, 316~638: speaker, 639~1993: chair, 1994~2186: cabinet}
+    NMR-test-02.tar = {0~120: cabinet, 121~1821: table, 1822~2040: display, 2041~2186: car}
+    NMR-test-03.tar = {0~1352: car, 1353~1715: bench, 1716~2186: rifle}
+    NMR-test-04.tar = {0~2: rifle}
+    """
     # Change object_index to test different 3D objects (e.g. 0, 1, 2, 3...)
-    run_full_causal_sweep(object_index=0)
+    run_full_causal_sweep(object_index=0, shard_name="NMR-test-00.tar", tag="sofa0")
