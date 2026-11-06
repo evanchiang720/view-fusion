@@ -35,7 +35,8 @@ from model.view_fusion import ViewFusion
 
 class HookManager:
     def __init__(self):
-        self.cached_activations: Dict[str, torch.Tensor] = {}
+        # Format: {mod_name: {timestep: tensor}}
+        self.cached_activations: Dict[str, Dict[int, torch.Tensor]] = {}
         self.mode: str = "IDLE"
         self.patch_target_name: Optional[str] = None
         self.hook_handles: List[torch.utils.hooks.RemovableHandle] = []
@@ -75,10 +76,14 @@ class HookManager:
         self.target_timestep = target_timestep
 
         for name, module in candidate_modules.items():
+            if name not in self.cached_activations:
+                self.cached_activations[name] = {}
+
             def make_hook(mod_name):
                 def hook_fn(sub_module, input_tensor, output_tensor):
-                    if self.current_timestep == self.target_timestep:
-                        self.cached_activations[mod_name] = output_tensor.detach().clone()
+                    if self.current_timestep is not None and self.current_timestep <= self.target_timestep:
+                        out = output_tensor[0] if isinstance(output_tensor, tuple) else output_tensor
+                        self.cached_activations[mod_name][self.current_timestep] = out.detach().clone()
                     return output_tensor
                 return hook_fn
 
@@ -94,12 +99,14 @@ class HookManager:
         if target_name not in self.cached_activations:
             raise KeyError(f"No clean activation cached for target: {target_name}")
 
-        clean_tensor = self.cached_activations[target_name]
-
         def patch_fn(sub_module, input_tensor, output_tensor):
-            # Intervene persistently from target_timestep downwards
             if self.current_timestep is not None and self.current_timestep <= self.target_timestep:
-                return clean_tensor.to(output_tensor.device, output_tensor.dtype)
+                clean_step_dict = self.cached_activations[target_name]
+                if self.current_timestep in clean_step_dict:
+                    clean_tensor = clean_step_dict[self.current_timestep]
+                    if isinstance(output_tensor, tuple):
+                        return (clean_tensor.to(output_tensor[0].device, output_tensor[0].dtype),) + output_tensor[1:]
+                    return clean_tensor.to(output_tensor.device, output_tensor.dtype)
             return output_tensor
 
         handle = target_module.register_forward_hook(patch_fn)
@@ -127,8 +134,8 @@ def find_candidate_components(model: nn.Module) -> Dict[str, nn.Module]:
             candidates[name] = module
         elif "mid" in name and module.__class__.__name__ == "ResnetBlocWithAttn":
             candidates[name] = module
-        elif name.endswith("final_conv"):
-            candidates[name] = module
+        #elif name.endswith("final_conv"):
+        #    candidates[name] = module
     return candidates
 
 
@@ -204,7 +211,7 @@ def evaluate_3d_consistency_metric(
     """
     mse = torch.mean((synthesized_view - reference_view) ** 2).item()
     if mse < 1e-8:
-        return 45.0
+        return 86.0
     return float(10.0 * np.log10(4.0 / mse))
 
 
@@ -290,7 +297,7 @@ def plot_causal_image_grid(
     n_rows = len(selected_components) + 1
     n_cols = len(timesteps)
 
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 2.2, n_rows * 2.2))
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 2.2, n_rows * 2.2), squeeze=False)
 
     # Row 0: Baselines
     for col_idx, t_step in enumerate(timesteps):
@@ -356,7 +363,7 @@ def load_viewfusion_model(device: torch.device) -> ViewFusion:
     return model
 
 
-def run_full_causal_sweep(object_index: int = 0, shard_name="NMR-test-0.tar", tag="sofa0"):
+def run_full_causal_sweep(object_index: int = 0, shard_name="NMR-test-00.tar", tag="sofa0"):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"[*] Starting Real Causal Sweep on: {device}")
 
@@ -405,6 +412,7 @@ def run_full_causal_sweep(object_index: int = 0, shard_name="NMR-test-0.tar", ta
     for j, t_step in enumerate(timesteps):
         print(f"\n---> [Timestep Group: t = {t_step}] Caching clean activations across all components...")
 
+        hook_manager.cached_activations.clear()
         hook_manager.register_timestep_tracker(model.denoise_fn, total_steps=total_diffusion_steps)
         hook_manager.register_record_hooks(components, target_timestep=t_step)
         torch.manual_seed(42)
@@ -488,4 +496,24 @@ if __name__ == "__main__":
     NMR-test-04.tar = {0~2: rifle}
     """
     # Change object_index to test different 3D objects (e.g. 0, 1, 2, 3...)
+    # NMR-test-00.tar
     run_full_causal_sweep(object_index=0, shard_name="NMR-test-00.tar", tag="sofa0")
+    run_full_causal_sweep(object_index=634, shard_name="NMR-test-00.tar", tag="airplane0")
+    run_full_causal_sweep(object_index=1443, shard_name="NMR-test-00.tar", tag="lamp0")
+    run_full_causal_sweep(object_index=1906, shard_name="NMR-test-00.tar", tag="telephone0")
+    run_full_causal_sweep(object_index=2116, shard_name="NMR-test-00.tar", tag="vessel0")
+    
+    # NMR-test-01.tar
+    run_full_causal_sweep(object_index=316, shard_name="NMR-test-01.tar", tag="speaker0")
+    run_full_causal_sweep(object_index=639, shard_name="NMR-test-01.tar", tag="chair0")
+    run_full_causal_sweep(object_index=1994, shard_name="NMR-test-01.tar", tag="cabinet0")
+    
+    # NMR-test-02.tar
+    run_full_causal_sweep(object_index=121, shard_name="NMR-test-02.tar", tag="table0")
+    run_full_causal_sweep(object_index=1822, shard_name="NMR-test-02.tar", tag="display0")
+    run_full_causal_sweep(object_index=2041, shard_name="NMR-test-02.tar", tag="car0")
+    
+    # NMR-test-03.tar
+    run_full_causal_sweep(object_index=1353, shard_name="NMR-test-03.tar", tag="bench0")
+    run_full_causal_sweep(object_index=1716, shard_name="NMR-test-03.tar", tag="rifle0")
+    
