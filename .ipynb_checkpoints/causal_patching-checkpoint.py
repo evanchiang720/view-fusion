@@ -436,7 +436,7 @@ def run_full_causal_sweep(object_index: int = 0, shard_name="NMR-test-0.tar", ta
     hook_manager.remove_all()
 
     # Step 4: Export Heatmap
-    heatmap_path = "results/real_causal_heatmap_sofa0.png"
+    heatmap_path = f"results/real_causal_heatmap_{tag}.png"
     plot_causal_heatmap(
         heatmap_matrix,
         comp_names,
@@ -462,7 +462,7 @@ def run_full_causal_sweep(object_index: int = 0, shard_name="NMR-test-0.tar", ta
         print(f"    Rank {rank} (Top-{rank}): {comp_names[idx]} | Peak IE_c = {peak_effects[idx]:.4f}")
     print(f"    Negative Control (Bottom-1): {comp_names[bottom_idx]} | Peak IE_c = {peak_effects[bottom_idx]:.4f}\n")
 
-    grid_path = "results/causal_visual_grid_{tag}.png"
+    grid_path = f"results/causal_visual_grid_{tag}.png"
     plot_causal_image_grid(
         saved_images=saved_visuals,
         clean_img=clean_out[0].detach().cpu(),
