@@ -497,21 +497,21 @@ if __name__ == "__main__":
     """
     # Change object_index to test different 3D objects (e.g. 0, 1, 2, 3...)
     # NMR-test-00.tar
-    run_full_causal_sweep(object_index=0, shard_name="NMR-test-00.tar", tag="sofa0")
-    run_full_causal_sweep(object_index=634, shard_name="NMR-test-00.tar", tag="airplane0")
-    run_full_causal_sweep(object_index=1443, shard_name="NMR-test-00.tar", tag="lamp0")
-    run_full_causal_sweep(object_index=1906, shard_name="NMR-test-00.tar", tag="telephone0")
-    run_full_causal_sweep(object_index=2116, shard_name="NMR-test-00.tar", tag="vessel0")
+    #run_full_causal_sweep(object_index=0, shard_name="NMR-test-00.tar", tag="sofa0")
+    #run_full_causal_sweep(object_index=634, shard_name="NMR-test-00.tar", tag="airplane0")
+    #run_full_causal_sweep(object_index=1443, shard_name="NMR-test-00.tar", tag="lamp0")
+    #run_full_causal_sweep(object_index=1906, shard_name="NMR-test-00.tar", tag="telephone0")
+    #run_full_causal_sweep(object_index=2116, shard_name="NMR-test-00.tar", tag="vessel0")
     
     # NMR-test-01.tar
-    run_full_causal_sweep(object_index=316, shard_name="NMR-test-01.tar", tag="speaker0")
-    run_full_causal_sweep(object_index=639, shard_name="NMR-test-01.tar", tag="chair0")
-    run_full_causal_sweep(object_index=1994, shard_name="NMR-test-01.tar", tag="cabinet0")
+    #run_full_causal_sweep(object_index=316, shard_name="NMR-test-01.tar", tag="speaker0")
+    #run_full_causal_sweep(object_index=639, shard_name="NMR-test-01.tar", tag="chair0")
+    #run_full_causal_sweep(object_index=1994, shard_name="NMR-test-01.tar", tag="cabinet0")
     
     # NMR-test-02.tar
-    run_full_causal_sweep(object_index=121, shard_name="NMR-test-02.tar", tag="table0")
-    run_full_causal_sweep(object_index=1822, shard_name="NMR-test-02.tar", tag="display0")
-    run_full_causal_sweep(object_index=2041, shard_name="NMR-test-02.tar", tag="car0")
+    #run_full_causal_sweep(object_index=121, shard_name="NMR-test-02.tar", tag="table0")
+    #run_full_causal_sweep(object_index=1822, shard_name="NMR-test-02.tar", tag="display0")
+    #run_full_causal_sweep(object_index=2041, shard_name="NMR-test-02.tar", tag="car0")
     
     # NMR-test-03.tar
     run_full_causal_sweep(object_index=1353, shard_name="NMR-test-03.tar", tag="bench0")
